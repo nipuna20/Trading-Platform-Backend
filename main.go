@@ -68,7 +68,8 @@ func initDB() {
 	
 	var connStr string
 	if databaseURL != "" {
-		// Use DATABASE_URL from Railway
+		// Railway provides DATABASE_URL - use it directly with PostgreSQL driver
+		// The lib/pq driver can handle the postgresql:// URL format
 		connStr = databaseURL
 		log.Println("Using DATABASE_URL from environment")
 	} else {
@@ -88,11 +89,16 @@ func initDB() {
 		log.Fatal("Error connecting to database:", err)
 	}
 
+	// Set connection pool settings for Railway
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
 	if err = db.Ping(); err != nil {
 		log.Fatal("Error pinging database:", err)
 	}
 
-	log.Println("Successfully connected to database")
+	log.Println("✅ Successfully connected to database")
 	
 	createTables()
 	createAuthTables(db)
