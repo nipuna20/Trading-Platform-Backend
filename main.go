@@ -146,9 +146,9 @@ func initDB() {
 	
 	log.Println("✅ Successfully connected to database")
 	
-	createTables()
-	createAuthTables(db)
-	createProjectsTable()
+	createAuthTables(db)      
+    createProjectsTable()     
+    createTables()
 	addAdminColumn(db)
 	initTopOrdersTables(db)
 	initMatchedOrdersTable(db)
