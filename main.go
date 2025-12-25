@@ -63,13 +63,25 @@ var (
 func initDB() {
 	var err error
 	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		getEnv("DB_HOST", "localhost"),
-		getEnv("DB_PORT", "5432"),
-		getEnv("DB_USER", "postgres"),
-		getEnv("DB_PASSWORD", "admin"),
-		getEnv("DB_NAME", "trading_platform"),
-	)
+	// Check if DATABASE_URL exists (for Railway/production)
+	databaseURL := os.Getenv("DATABASE_URL")
+	
+	var connStr string
+	if databaseURL != "" {
+		// Use DATABASE_URL from Railway
+		connStr = databaseURL
+		log.Println("Using DATABASE_URL from environment")
+	} else {
+		// Fallback to individual env vars for local development
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			getEnv("DB_HOST", "localhost"),
+			getEnv("DB_PORT", "5432"),
+			getEnv("DB_USER", "postgres"),
+			getEnv("DB_PASSWORD", "admin"),
+			getEnv("DB_NAME", "trading_platform"),
+		)
+		log.Println("Using individual DB env vars (local development)")
+	}
 
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -102,7 +114,6 @@ func initDB() {
 		log.Println("Warning: Error during initial matching:", err)
 	}
 }
-
 func cleanupNullProjectIds() {
 	queries := []string{
 		`UPDATE buyer SET project_id = 1 WHERE project_id IS NULL`,
