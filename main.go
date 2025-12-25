@@ -67,21 +67,57 @@ func initDB() {
 	
 	var connStr string
 	if databaseURL != "" {
-		// Simple approach: Just replace postgresql:// with postgres://
-		// lib/pq can handle the postgres:// format directly
-		connStr = strings.Replace(databaseURL, "postgresql://", "postgres://", 1)
+		// Manual parsing to handle special characters
+		// Format: postgresql://user:password@host:port/database
 		
-		// Ensure sslmode is set for Railway
-		if !strings.Contains(connStr, "sslmode=") {
-			if strings.Contains(connStr, "?") {
-				connStr += "&sslmode=require"
-			} else {
-				connStr += "?sslmode=require"
-			}
+		// Remove the scheme
+		urlWithoutScheme := strings.TrimPrefix(databaseURL, "postgresql://")
+		urlWithoutScheme = strings.TrimPrefix(urlWithoutScheme, "postgres://")
+		
+		// Split by @ to separate credentials from host
+		parts := strings.Split(urlWithoutScheme, "@")
+		if len(parts) != 2 {
+			log.Fatal("Invalid DATABASE_URL format")
 		}
 		
+		credentials := parts[0]
+		hostAndDB := parts[1]
+		
+		// Split credentials into username and password
+		credParts := strings.SplitN(credentials, ":", 2)
+		if len(credParts) != 2 {
+			log.Fatal("Invalid DATABASE_URL credentials format")
+		}
+		username := credParts[0]
+		password := credParts[1]
+		
+		// Split host:port/database
+		hostParts := strings.Split(hostAndDB, "/")
+		if len(hostParts) != 2 {
+			log.Fatal("Invalid DATABASE_URL host format")
+		}
+		hostPort := hostParts[0]
+		dbname := hostParts[1]
+		
+		// Split host and port
+		hostPortParts := strings.Split(hostPort, ":")
+		host := hostPortParts[0]
+		port := "5432"
+		if len(hostPortParts) == 2 {
+			port = hostPortParts[1]
+		}
+		
+		// Build connection string in key=value format (lib/pq format)
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+			host,
+			port,
+			username,
+			password,
+			dbname,
+		)
+		
 		log.Println("Using DATABASE_URL from environment")
-		log.Printf("Connection string format: postgres://[user]:[password]@[host]:[port]/[database]")
+		log.Printf("Connecting to: postgres://%s:***@%s:%s/%s", username, host, port, dbname)
 	} else {
 		// Fallback to individual env vars for local development
 		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -130,6 +166,7 @@ func initDB() {
 		log.Println("Warning: Error during initial matching:", err)
 	}
 }
+
 func cleanupNullProjectIds() {
 	queries := []string{
 		`UPDATE buyer SET project_id = 1 WHERE project_id IS NULL`,
