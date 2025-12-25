@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url" 
 	"os"
 	"strconv"
 	"strings"
@@ -63,14 +64,38 @@ var (
 func initDB() {
 	var err error
 	
-	// Check if DATABASE_URL exists (for Railway/production)
 	databaseURL := os.Getenv("DATABASE_URL")
 	
 	var connStr string
 	if databaseURL != "" {
-		// Railway provides DATABASE_URL - use it directly with PostgreSQL driver
-		// The lib/pq driver can handle the postgresql:// URL format
-		connStr = databaseURL
+		// Parse the DATABASE_URL to handle special characters in password
+		parsedURL, err := url.Parse(databaseURL)
+		if err != nil {
+			log.Fatal("Error parsing DATABASE_URL:", err)
+		}
+		
+		// Extract password (it's already URL-encoded in the URL)
+		password, _ := parsedURL.User.Password()
+		username := parsedURL.User.Username()
+		
+		// Get host and port
+		host := parsedURL.Hostname()
+		port := parsedURL.Port()
+		if port == "" {
+			port = "5432"
+		}
+		
+		// Get database name (remove leading slash)
+		dbname := strings.TrimPrefix(parsedURL.Path, "/")
+		
+		// Reconstruct connection string in lib/pq format
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+			host,
+			port,
+			username,
+			password,
+			dbname,
+		)
 		log.Println("Using DATABASE_URL from environment")
 	} else {
 		// Fallback to individual env vars for local development
@@ -83,21 +108,21 @@ func initDB() {
 		)
 		log.Println("Using individual DB env vars (local development)")
 	}
-
+	
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Error connecting to database:", err)
 	}
-
+	
 	// Set connection pool settings for Railway
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-
+	
 	if err = db.Ping(); err != nil {
 		log.Fatal("Error pinging database:", err)
 	}
-
+	
 	log.Println("✅ Successfully connected to database")
 	
 	createTables()
