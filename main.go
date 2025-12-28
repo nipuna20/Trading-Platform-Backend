@@ -1103,7 +1103,7 @@ func main() {
 	router.HandleFunc("/api/admin/circuit-breaker/reset/{project_id}", resetCircuitBreaker).Methods("POST")
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001", "https://new-trade-app-frontend-production.up.railway.app/"},
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001", "https://new-trade-app-frontend-production.up.railway.app"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
